@@ -1,18 +1,43 @@
 use near_contract_standards::fungible_token::core::FungibleTokenCore;
+use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
+use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue};
+use near_sdk::collections::LookupMap;
+use near_sdk::json_types::{Base64VecU8, ValidAccountId, U128};
+use near_sdk::{
+    assert_one_yocto, env, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue,
+    StorageUsage,
+};
+use std::num::ParseIntError;
+
+#[global_allocator]
+static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
-pub struct Contract {}
+pub struct Contract {
+    pub token: FungibleToken,
+
+    pub ft_metadata: FungibleTokenMetadata,
+}
 
 #[near_bindgen]
 impl Contract {
     #[init]
     pub fn new() -> Self {
         assert!(!env::state_exists(), "Already initialized");
-        Contract {}
+        Contract {
+            token: FungibleToken::new(b"t".to_vec()),
+            ft_metadata: FungibleTokenMetadata {
+                spec: String::default(),
+                name: String::default(),
+                symbol: String::default(),
+                icon: None,
+                reference: Option::from(String::default()),
+                reference_hash: Option::from(Base64VecU8(vec![])),
+                decimals: 0,
+            },
+        }
     }
 }
 
