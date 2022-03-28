@@ -24,27 +24,54 @@ pub struct Contract {
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn new() -> Self {
+    pub fn new(
+        owner_id: ValidAccountId,
+        total_supply: U128,
+        spec: String,
+        name: String,
+        symbol: String,
+        icon: Option<String>,
+        reference: Option<String>,
+        reference_hash: Option<Base64VecU8>,
+        decimals: u8,
+    ) -> Self {
         assert!(!env::state_exists(), "Already initialized");
-        Contract {
-            token: FungibleToken::new(b"t".to_vec()),
+        let token = FungibleToken {
+            accounts: LookupMap::new(b"a".to_vec()),
+            total_supply: Balance::from(total_supply),
+            account_storage_usage: 0,
+        };
+
+        let mut this = Contract {
+            token: FungibleToken::from(token),
             ft_metadata: FungibleTokenMetadata {
-                spec: String::default(),
-                name: String::default(),
-                symbol: String::default(),
-                icon: None,
-                reference: Option::from(String::default()),
-                reference_hash: Option::from(Base64VecU8(vec![])),
-                decimals: 0,
+                spec,
+                name,
+                symbol,
+                icon,
+                reference,
+                reference_hash,
+                decimals,
             },
-        }
+        };
+
+        // Make owner have total supply
+        let total_supply_u128: u128 = total_supply.into();
+        this.token
+            .accounts
+            .insert(&owner_id.as_ref(), &total_supply_u128);
+        this
     }
 }
 
 #[near_bindgen]
 impl FungibleTokenCore for Contract {
     fn ft_transfer(&mut self, receiver_id: ValidAccountId, amount: U128, memo: Option<String>) {
-        todo!()
+        let sender_id = env::predecessor_account_id();
+        assert_one_yocto();
+        let amount = amount.into();
+        self.token
+            .internal_transfer(&sender_id, receiver_id.as_ref(), amount, memo);
     }
 
     fn ft_transfer_call(
@@ -58,11 +85,15 @@ impl FungibleTokenCore for Contract {
     }
 
     fn ft_total_supply(&self) -> U128 {
-        todo!()
+        self.token.total_supply.into()
     }
 
     fn ft_balance_of(&self, account_id: ValidAccountId) -> U128 {
-        todo!()
+        self.token
+            .accounts
+            .get(account_id.as_ref())
+            .unwrap_or(0)
+            .into()
     }
 }
 
@@ -81,6 +112,21 @@ mod tests {
     fn test_new() {
         let context = get_context(false);
         testing_env!(context);
-        let _contract = Contract::new();
+
+        fn dex() -> ValidAccountId {
+            ValidAccountId::try_from("dex.near").unwrap()
+        }
+
+        let contract = Contract::new(
+            dex(),
+            U128::from(1_000_000_000_000_000),
+            String::from("0.1.0"),
+            String::from("NEAR Test Token"),
+            String::from("TEST"),
+            None,
+            None,
+            None,
+            24,
+        );
     }
 }
