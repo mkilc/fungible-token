@@ -3,13 +3,15 @@ use near_contract_standards::fungible_token::metadata::{
 };
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::{Base64VecU8, ValidAccountId, U128};
-use near_sdk::{
-    assert_one_yocto, env, log, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue,
-    StorageUsage,
-};
-use std::num::ParseIntError;
+use near_sdk::collections::LazyOption;
+use near_sdk::json_types::U128;
+use near_sdk::BorshStorageKey;
+use near_sdk::{env, log, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
+
+#[derive(BorshSerialize, BorshStorageKey)]
+enum StorageKeys {
+    StorageToken,
+}
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -26,7 +28,7 @@ impl Contract {
         metadata.assert_valid();
 
         let mut this = Contract {
-            token: FungibleToken::new(b"a".to_vec()),
+            token: FungibleToken::new(StorageKeys::StorageToken),
             ft_metadata: LazyOption::new(b"m".to_vec(), Some(&metadata)),
         };
         this.token.internal_register_account(&owner_id);
@@ -62,9 +64,9 @@ impl FungibleTokenMetadataProvider for Contract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use near_sdk::test_utils::{accounts, get_logs, VMContextBuilder};
-    use near_sdk::{test_utils, VMContext};
-    use near_sdk::{testing_env, MockedBlockchain};
+    use near_sdk::test_utils::{accounts, VMContextBuilder};
+    use near_sdk::testing_env;
+    use near_sdk::VMContext;
 
     fn get_context(is_view: bool) -> VMContext {
         VMContextBuilder::new().is_view(is_view).build()
@@ -75,11 +77,11 @@ mod tests {
         let context = get_context(false);
         testing_env!(context);
 
-        let contract = Contract::new(
+        let _contract = Contract::new(
             accounts(0).into(),
             U128::from(1_000_000_000_000_000),
             FungibleTokenMetadata {
-                spec: String::from("0.1.0"),
+                spec: String::from("ft-1.0.0"),
                 name: String::from("NEAR Test Token"),
                 symbol: String::from("TEST"),
                 icon: None,
